@@ -22,7 +22,7 @@ export default function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-green-600" />
+            <BarChart3 className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold">Palm Oil Manager</h1>
           </div>
 
