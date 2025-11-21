@@ -1,0 +1,216 @@
+"""
+Database models for Palm Oil Business Management System
+"""
+
+from datetime import datetime, timedelta
+from sqlalchemy import create_engine, Column, Integer, String, Float, Date, DateTime, Boolean, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
+import config
+
+Base = declarative_base()
+
+
+class Harvest(Base):
+    """FFB Harvest records"""
+    __tablename__ = 'harvests'
+
+    id = Column(Integer, primary_key=True)
+    harvest_date = Column(Date, nullable=False)
+    plantation = Column(String(50), nullable=False)
+    num_bunches = Column(Integer, nullable=False)
+    weight_per_bunch = Column(Float, nullable=False)  # kg
+    ripeness = Column(String(20), nullable=False)  # ripe/unripe
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    milling_records = relationship('Milling', back_populates='harvest')
+
+    @property
+    def total_weight(self):
+        """Calculate total FFB weight"""
+        return self.num_bunches * self.weight_per_bunch
+
+    @property
+    def expected_oil_yield(self):
+        """Calculate expected CPO yield based on OER"""
+        return self.total_weight * config.OER_PERCENTAGE
+
+    @property
+    def needs_milling_alert(self):
+        """Check if FFB needs milling alert"""
+        time_since_harvest = datetime.utcnow() - datetime.combine(self.harvest_date, datetime.min.time())
+        return time_since_harvest.total_seconds() / 3600 > config.MILLING_ALERT_HOURS
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'harvest_date': self.harvest_date.isoformat(),
+            'plantation': self.plantation,
+            'num_bunches': self.num_bunches,
+            'weight_per_bunch': self.weight_per_bunch,
+            'ripeness': self.ripeness,
+            'total_weight': self.total_weight,
+            'expected_oil_yield': self.expected_oil_yield,
+            'needs_milling_alert': self.needs_milling_alert,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class Milling(Base):
+    """Milling operations records"""
+    __tablename__ = 'milling'
+
+    id = Column(Integer, primary_key=True)
+    milling_date = Column(Date, nullable=False)
+    mill_location = Column(String(50), nullable=False)
+    harvest_id = Column(Integer, ForeignKey('harvests.id'))
+    milling_cost = Column(Float, nullable=False)  # Naira
+    oil_yield = Column(Float, nullable=False)  # kg
+    transport_cost = Column(Float, default=0)  # Naira
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    harvest = relationship('Harvest', back_populates='milling_records')
+    storage_records = relationship('Storage', back_populates='milling')
+
+    @property
+    def cost_per_kg(self):
+        """Calculate cost per kg of oil"""
+        total_cost = self.milling_cost + self.transport_cost
+        if self.oil_yield > 0:
+            return total_cost / self.oil_yield
+        return 0
+
+    @property
+    def ffb_cost(self):
+        """Get FFB cost from harvest"""
+        if self.harvest:
+            return self.harvest.total_weight * 50  # Assuming 50 Naira per kg FFB
+        return 0
+
+    @property
+    def total_cost(self):
+        """Calculate total production cost"""
+        return self.ffb_cost + self.milling_cost + self.transport_cost
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'milling_date': self.milling_date.isoformat(),
+            'mill_location': self.mill_location,
+            'harvest_id': self.harvest_id,
+            'milling_cost': self.milling_cost,
+            'oil_yield': self.oil_yield,
+            'transport_cost': self.transport_cost,
+            'cost_per_kg': self.cost_per_kg,
+            'total_cost': self.total_cost,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class Storage(Base):
+    """CPO Storage inventory"""
+    __tablename__ = 'storage'
+
+    id = Column(Integer, primary_key=True)
+    container_id = Column(String(50), unique=True, nullable=False)
+    milling_id = Column(Integer, ForeignKey('milling.id'))
+    quantity = Column(Float, nullable=False)  # kg
+    storage_date = Column(Date, nullable=False)
+    max_shelf_life_days = Column(Integer, default=config.DEFAULT_SHELF_LIFE_DAYS)
+    plantation_source = Column(String(50), nullable=False)
+    is_sold = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    milling = relationship('Milling', back_populates='storage_records')
+    sales_records = relationship('Sale', back_populates='storage')
+
+    @property
+    def expiry_date(self):
+        """Calculate expiry date"""
+        return self.storage_date + timedelta(days=self.max_shelf_life_days)
+
+    @property
+    def days_until_expiry(self):
+        """Calculate days until expiry"""
+        delta = self.expiry_date - datetime.utcnow().date()
+        return delta.days
+
+    @property
+    def is_near_expiry(self):
+        """Check if CPO is near expiry"""
+        return self.days_until_expiry <= config.STORAGE_EXPIRY_WARNING_DAYS and not self.is_sold
+
+    @property
+    def is_expired(self):
+        """Check if CPO has expired"""
+        return self.days_until_expiry < 0 and not self.is_sold
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'container_id': self.container_id,
+            'milling_id': self.milling_id,
+            'quantity': self.quantity,
+            'storage_date': self.storage_date.isoformat(),
+            'max_shelf_life_days': self.max_shelf_life_days,
+            'plantation_source': self.plantation_source,
+            'is_sold': self.is_sold,
+            'expiry_date': self.expiry_date.isoformat(),
+            'days_until_expiry': self.days_until_expiry,
+            'is_near_expiry': self.is_near_expiry,
+            'is_expired': self.is_expired,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+class Sale(Base):
+    """Sales transactions"""
+    __tablename__ = 'sales'
+
+    id = Column(Integer, primary_key=True)
+    sale_date = Column(Date, nullable=False)
+    buyer_name = Column(String(100), nullable=False)
+    storage_id = Column(Integer, ForeignKey('storage.id'))
+    quantity_sold = Column(Float, nullable=False)  # kg
+    price_per_kg = Column(Float, nullable=False)  # Naira
+    payment_status = Column(String(20), nullable=False)  # Paid/Pending
+    payment_date = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    storage = relationship('Storage', back_populates='sales_records')
+
+    @property
+    def total_revenue(self):
+        """Calculate total revenue from sale"""
+        return self.quantity_sold * self.price_per_kg
+
+    @property
+    def is_payment_pending(self):
+        """Check if payment is pending"""
+        return self.payment_status.lower() == 'pending'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'sale_date': self.sale_date.isoformat(),
+            'buyer_name': self.buyer_name,
+            'storage_id': self.storage_id,
+            'quantity_sold': self.quantity_sold,
+            'price_per_kg': self.price_per_kg,
+            'payment_status': self.payment_status,
+            'payment_date': self.payment_date.isoformat() if self.payment_date else None,
+            'total_revenue': self.total_revenue,
+            'is_payment_pending': self.is_payment_pending,
+            'created_at': self.created_at.isoformat()
+        }
+
+
+def init_db():
+    """Initialize the database"""
+    engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
+    Base.metadata.create_all(engine)
+    return engine
