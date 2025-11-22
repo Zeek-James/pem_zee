@@ -5,8 +5,17 @@ Configuration file for Palm Oil Business Management System
 import os
 
 # Database Configuration
-DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'palm_oil.db')
-SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
+# Use PostgreSQL in production, SQLite in development
+if os.getenv('DATABASE_URL'):
+    # Production database (PostgreSQL from environment)
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    # Fix for Heroku postgres:// -> postgresql://
+    if SQLALCHEMY_DATABASE_URI.startswith('postgres://'):
+        SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace('postgres://', 'postgresql://', 1)
+else:
+    # Development database (SQLite)
+    DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'palm_oil.db')
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
 
 # Business Configuration
 OER_PERCENTAGE = 0.20  # Oil Extraction Rate (20%)
@@ -24,8 +33,8 @@ PLANTATIONS = ['Owerri', 'Aba']
 # API Configuration
 API_PREFIX = '/api'
 HOST = '0.0.0.0'
-PORT = 5001
-DEBUG = True
+PORT = int(os.getenv('PORT', 5001))  # Use PORT from environment in production
+DEBUG = os.getenv('FLASK_ENV') != 'production'  # Disable debug in production
 
 # Report Configuration
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'reports')
