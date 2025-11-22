@@ -12,6 +12,7 @@ SQLALCHEMY_DATABASE_URI = f'sqlite:///{DATABASE_PATH}'
 OER_PERCENTAGE = 0.20  # Oil Extraction Rate (20%)
 DEFAULT_SHELF_LIFE_DAYS = 30  # CPO shelf life in days
 MILLING_ALERT_HOURS = 24  # Alert if FFB not milled within 24 hours
+CPO_DENSITY = 0.91  # CPO density in kg/liter (for volume conversion)
 
 # Alert Thresholds
 STORAGE_EXPIRY_WARNING_DAYS = 5  # Warn when CPO has 5 days until expiry

@@ -66,7 +66,10 @@ def create_harvest():
             plantation=data['plantation'],
             num_bunches=data['num_bunches'],
             weight_per_bunch=data['weight_per_bunch'],
-            ripeness=data['ripeness']
+            ripeness=data['ripeness'],
+            is_purchased=data.get('is_purchased', False),
+            supplier_name=data.get('supplier_name'),
+            purchase_price=data.get('purchase_price')
         )
 
         session.add(harvest)

@@ -19,6 +19,12 @@ export interface Harvest {
   ripeness: string;
   total_weight: number;
   expected_oil_yield: number;
+  expected_oil_yield_liters: number;
+  is_purchased: boolean;
+  supplier_name: string | null;
+  purchase_price: number | null;
+  ffb_cost: number;
+  cost_per_kg: number;
   needs_milling_alert: boolean;
   created_at: string;
 }
@@ -30,8 +36,10 @@ export interface Milling {
   harvest_id: number;
   milling_cost: number;
   oil_yield: number;
+  oil_yield_liters: number;
   transport_cost: number;
   cost_per_kg: number;
+  cost_per_liter: number;
   total_cost: number;
   created_at: string;
 }
@@ -41,6 +49,7 @@ export interface Storage {
   container_id: string;
   milling_id: number;
   quantity: number;
+  quantity_liters: number;
   storage_date: string;
   max_shelf_life_days: number;
   plantation_source: string;
@@ -58,6 +67,7 @@ export interface Sale {
   buyer_name: string;
   storage_id: number;
   quantity_sold: number;
+  quantity_sold_liters: number;
   price_per_kg: number;
   payment_status: string;
   payment_date: string | null;

@@ -73,7 +73,14 @@ export default function SalesPage() {
                     <tr key={sale.id} className="border-b">
                       <td className="px-4 py-2">{format(new Date(sale.sale_date), 'MMM dd, yyyy')}</td>
                       <td className="px-4 py-2">{sale.buyer_name}</td>
-                      <td className="px-4 py-2">{sale.quantity_sold.toFixed(2)}</td>
+                      <td className="px-4 py-2">
+                        <div>
+                          <p>{sale.quantity_sold.toFixed(2)} kg</p>
+                          <p className='text-xs text-muted-foreground'>
+                            ~{sale.quantity_sold_liters.toFixed(2)} L
+                          </p>
+                        </div>
+                      </td>
                       <td className="px-4 py-2">₦{sale.price_per_kg.toLocaleString()}</td>
                       <td className="px-4 py-2">₦{sale.total_revenue.toLocaleString()}</td>
                       <td className="px-4 py-2">

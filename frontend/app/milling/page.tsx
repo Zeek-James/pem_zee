@@ -193,9 +193,10 @@ export default function MillingPage() {
                               new Date(harvest.harvest_date),
                               "MMM dd, yyyy"
                             )}{" "}
-                            - {harvest.plantation}(
+                            - {harvest.plantation} (
                             {harvest.total_weight.toFixed(0)} kg FFB, Expected:{" "}
-                            {harvest.expected_oil_yield.toFixed(0)} kg oil)
+                            {harvest.expected_oil_yield.toFixed(0)} kg / ~
+                            {harvest.expected_oil_yield_liters.toFixed(0)} L oil)
                           </SelectItem>
                         ))
                       )}
@@ -207,7 +208,11 @@ export default function MillingPage() {
                       {harvests
                         .find((h) => h.id === parseInt(formData.harvest_id))
                         ?.expected_oil_yield.toFixed(2)}{" "}
-                      kg
+                      kg (~
+                      {harvests
+                        .find((h) => h.id === parseInt(formData.harvest_id))
+                        ?.expected_oil_yield_liters.toFixed(2)}{" "}
+                      L)
                     </p>
                   )}
                 </div>
@@ -349,7 +354,12 @@ export default function MillingPage() {
                       <td className='px-4 py-2'>{record.mill_location}</td>
                       <td className='px-4 py-2'>#{record.harvest_id}</td>
                       <td className='px-4 py-2 font-medium'>
-                        {record.oil_yield.toFixed(2)}
+                        <div>
+                          <p>{record.oil_yield.toFixed(2)} kg</p>
+                          <p className='text-xs text-muted-foreground'>
+                            ~{record.oil_yield_liters.toFixed(2)} L
+                          </p>
+                        </div>
                       </td>
                       <td className='px-4 py-2'>
                         ₦{record.total_cost.toLocaleString()}
@@ -482,9 +492,14 @@ export default function MillingPage() {
                     <span className='text-muted-foreground'>
                       Actual Oil Produced:
                     </span>
-                    <span className='text-xl font-bold text-primary'>
-                      {selectedMilling.oil_yield.toFixed(2)} kg
-                    </span>
+                    <div className='text-right'>
+                      <p className='text-xl font-bold text-primary'>
+                        {selectedMilling.oil_yield.toFixed(2)} kg
+                      </p>
+                      <p className='text-sm text-muted-foreground'>
+                        ~{selectedMilling.oil_yield_liters.toFixed(2)} L
+                      </p>
+                    </div>
                   </div>
                   {getHarvestDetails(selectedMilling.harvest_id) && (
                     <div className='flex justify-between text-sm'>
@@ -545,11 +560,19 @@ export default function MillingPage() {
                       ₦{selectedMilling.total_cost.toLocaleString()}
                     </span>
                   </div>
-                  <div className='flex justify-between bg-primary/10 p-3 rounded-lg mt-3'>
-                    <span className='font-semibold'>Cost per kg:</span>
-                    <span className='font-bold text-lg text-primary'>
-                      ₦{selectedMilling.cost_per_kg.toFixed(2)}/kg
-                    </span>
+                  <div className='bg-primary/10 p-3 rounded-lg mt-3 space-y-2'>
+                    <div className='flex justify-between'>
+                      <span className='font-semibold'>Cost per kg:</span>
+                      <span className='font-bold text-lg text-primary'>
+                        ₦{selectedMilling.cost_per_kg.toFixed(2)}/kg
+                      </span>
+                    </div>
+                    <div className='flex justify-between text-sm'>
+                      <span className='text-muted-foreground'>Cost per liter:</span>
+                      <span className='font-medium text-primary'>
+                        ₦{selectedMilling.cost_per_liter.toFixed(2)}/L
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>

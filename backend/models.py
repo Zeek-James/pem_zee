@@ -21,6 +21,12 @@ class Harvest(Base):
     num_bunches = Column(Integer, nullable=False)
     weight_per_bunch = Column(Float, nullable=False)  # kg
     ripeness = Column(String(20), nullable=False)  # ripe/unripe
+
+    # Purchase information
+    is_purchased = Column(Boolean, default=False)  # True if purchased, False if own harvest
+    supplier_name = Column(String(100), nullable=True)  # Supplier name if purchased
+    purchase_price = Column(Float, nullable=True)  # Total purchase price in Naira
+
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # Relationships
@@ -35,6 +41,27 @@ class Harvest(Base):
     def expected_oil_yield(self):
         """Calculate expected CPO yield based on OER"""
         return self.total_weight * config.OER_PERCENTAGE
+
+    @property
+    def expected_oil_yield_liters(self):
+        """Calculate expected CPO yield in liters"""
+        return self.expected_oil_yield / config.CPO_DENSITY
+
+    @property
+    def ffb_cost(self):
+        """Calculate FFB cost - use purchase price if purchased, otherwise estimate"""
+        if self.is_purchased and self.purchase_price:
+            return self.purchase_price
+        else:
+            # For own harvest, estimate based on weight (can be customized)
+            return self.total_weight * 50  # Default ₦50/kg for own harvest
+
+    @property
+    def cost_per_kg(self):
+        """Calculate cost per kg of FFB"""
+        if self.total_weight > 0:
+            return self.ffb_cost / self.total_weight
+        return 0
 
     @property
     def needs_milling_alert(self):
@@ -52,6 +79,12 @@ class Harvest(Base):
             'ripeness': self.ripeness,
             'total_weight': self.total_weight,
             'expected_oil_yield': self.expected_oil_yield,
+            'expected_oil_yield_liters': self.expected_oil_yield_liters,
+            'is_purchased': self.is_purchased,
+            'supplier_name': self.supplier_name,
+            'purchase_price': self.purchase_price,
+            'ffb_cost': self.ffb_cost,
+            'cost_per_kg': self.cost_per_kg,
             'needs_milling_alert': self.needs_milling_alert,
             'created_at': self.created_at.isoformat()
         }
@@ -75,6 +108,11 @@ class Milling(Base):
     storage_records = relationship('Storage', back_populates='milling')
 
     @property
+    def oil_yield_liters(self):
+        """Calculate oil yield in liters"""
+        return self.oil_yield / config.CPO_DENSITY
+
+    @property
     def cost_per_kg(self):
         """Calculate cost per kg of oil"""
         total_cost = self.milling_cost + self.transport_cost
@@ -83,10 +121,17 @@ class Milling(Base):
         return 0
 
     @property
+    def cost_per_liter(self):
+        """Calculate cost per liter of oil"""
+        if self.oil_yield_liters > 0:
+            return self.total_cost / self.oil_yield_liters
+        return 0
+
+    @property
     def ffb_cost(self):
         """Get FFB cost from harvest"""
         if self.harvest:
-            return self.harvest.total_weight * 50  # Assuming 50 Naira per kg FFB
+            return self.harvest.ffb_cost  # Use actual FFB cost from harvest
         return 0
 
     @property
@@ -102,8 +147,10 @@ class Milling(Base):
             'harvest_id': self.harvest_id,
             'milling_cost': self.milling_cost,
             'oil_yield': self.oil_yield,
+            'oil_yield_liters': self.oil_yield_liters,
             'transport_cost': self.transport_cost,
             'cost_per_kg': self.cost_per_kg,
+            'cost_per_liter': self.cost_per_liter,
             'total_cost': self.total_cost,
             'created_at': self.created_at.isoformat()
         }
@@ -148,12 +195,18 @@ class Storage(Base):
         """Check if CPO has expired"""
         return self.days_until_expiry < 0 and not self.is_sold
 
+    @property
+    def quantity_liters(self):
+        """Calculate quantity in liters"""
+        return self.quantity / config.CPO_DENSITY
+
     def to_dict(self):
         return {
             'id': self.id,
             'container_id': self.container_id,
             'milling_id': self.milling_id,
             'quantity': self.quantity,
+            'quantity_liters': self.quantity_liters,
             'storage_date': self.storage_date.isoformat(),
             'max_shelf_life_days': self.max_shelf_life_days,
             'plantation_source': self.plantation_source,
@@ -193,6 +246,11 @@ class Sale(Base):
         """Check if payment is pending"""
         return self.payment_status.lower() == 'pending'
 
+    @property
+    def quantity_sold_liters(self):
+        """Calculate quantity sold in liters"""
+        return self.quantity_sold / config.CPO_DENSITY
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -200,6 +258,7 @@ class Sale(Base):
             'buyer_name': self.buyer_name,
             'storage_id': self.storage_id,
             'quantity_sold': self.quantity_sold,
+            'quantity_sold_liters': self.quantity_sold_liters,
             'price_per_kg': self.price_per_kg,
             'payment_status': self.payment_status,
             'payment_date': self.payment_date.isoformat() if self.payment_date else None,

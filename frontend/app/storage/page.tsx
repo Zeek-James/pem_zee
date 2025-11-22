@@ -47,6 +47,7 @@ export default function StoragePage() {
               <div>
                 <p className="text-sm text-muted-foreground">Total Available</p>
                 <p className="text-2xl font-bold">{totalQuantity.toFixed(2)} kg</p>
+                <p className="text-sm text-muted-foreground">~{(totalQuantity / 0.91).toFixed(2)} L</p>
               </div>
             </div>
           </CardContent>
@@ -78,7 +79,14 @@ export default function StoragePage() {
                   {storage.map((item) => (
                     <tr key={item.id} className="border-b">
                       <td className="px-4 py-2 font-medium">{item.container_id}</td>
-                      <td className="px-4 py-2">{item.quantity.toFixed(2)}</td>
+                      <td className="px-4 py-2">
+                        <div>
+                          <p>{item.quantity.toFixed(2)} kg</p>
+                          <p className='text-xs text-muted-foreground'>
+                            ~{item.quantity_liters.toFixed(2)} L
+                          </p>
+                        </div>
+                      </td>
                       <td className="px-4 py-2">{format(new Date(item.storage_date), 'MMM dd, yyyy')}</td>
                       <td className="px-4 py-2">{format(new Date(item.expiry_date), 'MMM dd, yyyy')}</td>
                       <td className="px-4 py-2">{item.days_until_expiry}</td>
