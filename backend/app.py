@@ -13,7 +13,15 @@ from reports import ReportGenerator
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)
+
+# CORS Configuration
+# Update the Vercel URL after deployment
+allowed_origins = [
+    'http://localhost:3000',  # Development
+    'https://pem-zee.vercel.app',  # Production (UPDATE THIS with your actual Vercel URL)
+    'https://pem-zee-*.vercel.app',  # Vercel preview deployments
+]
+CORS(app, origins=allowed_origins, supports_credentials=True)
 
 # Database setup
 engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
