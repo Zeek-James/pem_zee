@@ -1,5 +1,5 @@
 {
-  "/harvest/page": "app/harvest/page.js",
   "/milling/page": "app/milling/page.js",
-  "/storage/page": "app/storage/page.js"
+  "/storage/page": "app/storage/page.js",
+  "/harvest/page": "app/harvest/page.js"
 }
