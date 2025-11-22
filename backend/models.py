@@ -200,6 +200,21 @@ class Storage(Base):
         """Calculate quantity in liters"""
         return self.quantity / config.CPO_DENSITY
 
+    @property
+    def total_sold(self):
+        """Calculate total quantity sold from this container"""
+        return sum(sale.quantity_sold for sale in self.sales_records)
+
+    @property
+    def remaining_quantity(self):
+        """Calculate remaining quantity in storage"""
+        return self.quantity - self.total_sold
+
+    @property
+    def remaining_quantity_liters(self):
+        """Calculate remaining quantity in liters"""
+        return self.remaining_quantity / config.CPO_DENSITY
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -207,6 +222,9 @@ class Storage(Base):
             'milling_id': self.milling_id,
             'quantity': self.quantity,
             'quantity_liters': self.quantity_liters,
+            'total_sold': self.total_sold,
+            'remaining_quantity': self.remaining_quantity,
+            'remaining_quantity_liters': self.remaining_quantity_liters,
             'storage_date': self.storage_date.isoformat(),
             'max_shelf_life_days': self.max_shelf_life_days,
             'plantation_source': self.plantation_source,

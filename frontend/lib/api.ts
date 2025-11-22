@@ -50,6 +50,9 @@ export interface Storage {
   milling_id: number;
   quantity: number;
   quantity_liters: number;
+  total_sold: number;
+  remaining_quantity: number;
+  remaining_quantity_liters: number;
   storage_date: string;
   max_shelf_life_days: number;
   plantation_source: string;

@@ -173,15 +173,21 @@ def get_storage():
 
 @app.route(f'{config.API_PREFIX}/storage/available', methods=['GET'])
 def get_available_storage():
-    """Get available (unsold) storage inventory"""
+    """Get available (not fully sold) storage inventory with remaining quantities"""
     session = get_session()
     try:
+        # Get all storage records (not fully sold)
         storage_records = session.query(Storage).filter_by(is_sold=False).all()
-        total_quantity = sum(s.quantity for s in storage_records)
+
+        # Filter to only include containers with remaining quantity
+        available_records = [s for s in storage_records if s.remaining_quantity > 0]
+
+        # Calculate total remaining quantity
+        total_remaining = sum(s.remaining_quantity for s in available_records)
 
         return jsonify({
-            'inventory': [s.to_dict() for s in storage_records],
-            'total_quantity': total_quantity
+            'inventory': [s.to_dict() for s in available_records],
+            'total_quantity': total_remaining
         })
     finally:
         session.close()
@@ -257,27 +263,44 @@ def create_sale():
         if not storage:
             return jsonify({'error': 'Storage record not found'}), 404
 
-        if storage.is_sold:
-            return jsonify({'error': 'This storage container is already sold'}), 400
+        # Check remaining quantity
+        remaining = storage.remaining_quantity
+        quantity_to_sell = data['quantity_sold']
+
+        if remaining <= 0:
+            return jsonify({'error': 'This storage container is empty (all quantity sold)'}), 400
+
+        if quantity_to_sell > remaining:
+            return jsonify({
+                'error': f'Cannot sell {quantity_to_sell}kg. Only {remaining:.2f}kg available in this container.'
+            }), 400
 
         # Create sale record
         sale = Sale(
             sale_date=datetime.strptime(data['sale_date'], '%Y-%m-%d').date(),
             buyer_name=data['buyer_name'],
             storage_id=data['storage_id'],
-            quantity_sold=data['quantity_sold'],
+            quantity_sold=quantity_to_sell,
             price_per_kg=data['price_per_kg'],
             payment_status=data['payment_status'],
             payment_date=datetime.strptime(data['payment_date'], '%Y-%m-%d').date() if data.get('payment_date') else None
         )
 
-        # Update storage
-        storage.is_sold = True
-
         session.add(sale)
+        session.flush()  # Flush to update storage.remaining_quantity calculation
+
+        # Mark as sold only if all quantity is sold
+        new_remaining = storage.remaining_quantity
+        if new_remaining <= 0:
+            storage.is_sold = True
+
         session.commit()
 
-        return jsonify(sale.to_dict()), 201
+        return jsonify({
+            'sale': sale.to_dict(),
+            'storage_remaining': new_remaining,
+            'container_fully_sold': storage.is_sold
+        }), 201
     except Exception as e:
         session.rollback()
         return jsonify({'error': str(e)}), 400
@@ -326,7 +349,8 @@ def get_dashboard_summary():
         total_milling_cost = sum(m.total_cost for m in milling_records)
         total_oil_produced = sum(m.oil_yield for m in milling_records)
         total_revenue = sum(s.total_revenue for s in sales)
-        total_storage = sum(s.quantity for s in storage_records)
+        # Use remaining_quantity to show actual available stock (not original quantity)
+        total_storage = sum(s.remaining_quantity for s in storage_records)
 
         # Calculate profit
         total_profit = total_revenue - total_milling_cost
