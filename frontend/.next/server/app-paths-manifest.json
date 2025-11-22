@@ -1,7 +1,5 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
   "/harvest/page": "app/harvest/page.js",
   "/milling/page": "app/milling/page.js",
-  "/storage/page": "app/storage/page.js",
-  "/page": "app/page.js"
+  "/storage/page": "app/storage/page.js"
 }
