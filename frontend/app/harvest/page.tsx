@@ -102,7 +102,7 @@ export default function HarvestPage() {
         <div>
           <h1 className='text-3xl font-bold tracking-tight'>Harvest Tracker</h1>
           <p className='text-muted-foreground'>
-            Record and manage FFB harvests
+            Record and manage FFB(s) harvests
           </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
