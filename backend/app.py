@@ -4,11 +4,12 @@ Flask API for Palm Oil Business Management System
 
 from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager, create_access_token, create_refresh_token, jwt_required, get_jwt_identity
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, date
 import config
-from models import Base, Harvest, Milling, Storage, Sale
+from models import Base, Harvest, Milling, Storage, Sale, User, Role, Permission
 from reports import ReportGenerator
 
 # Initialize Flask app
@@ -22,6 +23,11 @@ allowed_origins = [
     'https://pem-zee-*.vercel.app',  # Vercel preview deployments
 ]
 CORS(app, origins=allowed_origins, supports_credentials=True)
+
+# JWT Configuration
+app.config['JWT_SECRET_KEY'] = config.JWT_SECRET_KEY
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = config.JWT_ACCESS_TOKEN_EXPIRES
+jwt = JWTManager(app)
 
 # Database setup
 engine = create_engine(config.SQLALCHEMY_DATABASE_URI)
@@ -530,6 +536,166 @@ def generate_pdf_report():
         )
 
         return send_file(filepath, as_attachment=True)
+    finally:
+        session.close()
+
+
+# ============= AUTHENTICATION ENDPOINTS =============
+
+@app.route(f'{config.API_PREFIX}/auth/register', methods=['POST'])
+def register():
+    """Register a new user"""
+    session = get_session()
+    try:
+        data = request.json
+
+        # Validate required fields
+        required_fields = ['username', 'email', 'password', 'full_name', 'role_id']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
+        # Check if username already exists
+        existing_user = session.query(User).filter_by(username=data['username']).first()
+        if existing_user:
+            return jsonify({'error': 'Username already exists'}), 409
+
+        # Check if email already exists
+        existing_email = session.query(User).filter_by(email=data['email']).first()
+        if existing_email:
+            return jsonify({'error': 'Email already exists'}), 409
+
+        # Validate role exists
+        role = session.query(Role).get(data['role_id'])
+        if not role:
+            return jsonify({'error': 'Invalid role_id'}), 400
+
+        # Create new user
+        user = User(
+            username=data['username'],
+            email=data['email'],
+            full_name=data['full_name'],
+            role_id=data['role_id']
+        )
+        user.set_password(data['password'])  # Hash password
+
+        session.add(user)
+        session.commit()
+
+        return jsonify({
+            'message': 'User registered successfully',
+            'user': user.to_dict()
+        }), 201
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        session.close()
+
+
+@app.route(f'{config.API_PREFIX}/auth/login', methods=['POST'])
+def login():
+    """Login user and return JWT tokens"""
+    session = get_session()
+    try:
+        data = request.json
+
+        # Validate required fields
+        if 'username' not in data or 'password' not in data:
+            return jsonify({'error': 'Username and password required'}), 400
+
+        # Find user
+        user = session.query(User).filter_by(username=data['username']).first()
+
+        if not user:
+            return jsonify({'error': 'Invalid username or password'}), 401
+
+        # Check if user is active
+        if not user.is_active:
+            return jsonify({'error': 'Account is disabled'}), 403
+
+        # Verify password
+        if not user.check_password(data['password']):
+            return jsonify({'error': 'Invalid username or password'}), 401
+
+        # Update last login
+        user.last_login = datetime.utcnow()
+        session.commit()
+
+        # Create JWT tokens
+        access_token = create_access_token(
+            identity=user.id,
+            additional_claims={
+                'username': user.username,
+                'role': user.role.name,
+                'role_id': user.role_id
+            }
+        )
+        refresh_token = create_refresh_token(identity=user.id)
+
+        return jsonify({
+            'message': 'Login successful',
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user': user.to_dict()
+        }), 200
+
+    except Exception as e:
+        session.rollback()
+        return jsonify({'error': str(e)}), 400
+    finally:
+        session.close()
+
+
+@app.route(f'{config.API_PREFIX}/auth/logout', methods=['POST'])
+@jwt_required()
+def logout():
+    """Logout user (client-side token deletion)"""
+    return jsonify({'message': 'Logout successful'}), 200
+
+
+@app.route(f'{config.API_PREFIX}/auth/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    """Refresh access token using refresh token"""
+    current_user_id = get_jwt_identity()
+    session = get_session()
+
+    try:
+        user = session.query(User).get(current_user_id)
+        if not user or not user.is_active:
+            return jsonify({'error': 'User not found or inactive'}), 401
+
+        new_access_token = create_access_token(
+            identity=user.id,
+            additional_claims={
+                'username': user.username,
+                'role': user.role.name,
+                'role_id': user.role_id
+            }
+        )
+
+        return jsonify({
+            'access_token': new_access_token
+        }), 200
+    finally:
+        session.close()
+
+
+@app.route(f'{config.API_PREFIX}/auth/me', methods=['GET'])
+@jwt_required()
+def get_current_user():
+    """Get current logged-in user info"""
+    current_user_id = get_jwt_identity()
+    session = get_session()
+
+    try:
+        user = session.query(User).get(current_user_id)
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+
+        return jsonify(user.to_dict()), 200
     finally:
         session.close()
 

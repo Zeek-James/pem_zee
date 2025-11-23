@@ -36,5 +36,10 @@ HOST = '0.0.0.0'
 PORT = int(os.getenv('PORT', 5001))  # Use PORT from environment in production
 DEBUG = os.getenv('FLASK_ENV') != 'production'  # Disable debug in production
 
+# JWT Configuration
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev-secret-key-change-in-production')  # Change in production!
+JWT_ACCESS_TOKEN_EXPIRES = 3600 * 24  # 24 hours in seconds
+JWT_REFRESH_TOKEN_EXPIRES = 3600 * 24 * 30  # 30 days in seconds
+
 # Report Configuration
 REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'reports')
