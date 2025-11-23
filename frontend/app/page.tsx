@@ -68,19 +68,21 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Overview of your palm oil business performance</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Overview of your palm oil business performance</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.open(downloadExcelReport('summary'), '_blank')}>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button variant="outline" onClick={() => window.open(downloadExcelReport('summary'), '_blank')} className="w-full sm:w-auto">
             <FileSpreadsheet className="mr-2 h-4 w-4" />
-            Excel Report
+            <span className="hidden sm:inline">Excel Report</span>
+            <span className="sm:hidden">Excel</span>
           </Button>
-          <Button variant="outline" onClick={() => window.open(downloadPdfReport('summary'), '_blank')}>
+          <Button variant="outline" onClick={() => window.open(downloadPdfReport('summary'), '_blank')} className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
-            PDF Report
+            <span className="hidden sm:inline">PDF Report</span>
+            <span className="sm:hidden">PDF</span>
           </Button>
         </div>
       </div>

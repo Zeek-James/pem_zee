@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'Palm Oil Manager',
   description: 'Palm Oil Business Management System',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=5',
 }
 
 export default function RootLayout({
@@ -19,7 +20,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Navigation />
-        <main className="container mx-auto py-6">
+        <main className="container mx-auto px-4 py-4 sm:py-6">
           {children}
         </main>
       </body>
