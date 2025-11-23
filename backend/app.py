@@ -30,6 +30,13 @@ Session = sessionmaker(bind=engine)
 # Initialize report generator
 report_gen = ReportGenerator()
 
+# Initialize database tables (critical for production)
+try:
+    Base.metadata.create_all(engine)
+    print("Database tables initialized successfully")
+except Exception as e:
+    print(f"Warning: Could not initialize database tables: {e}")
+
 
 def get_session():
     """Get database session"""
