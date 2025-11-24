@@ -36,8 +36,17 @@ import {
 } from "@/lib/api";
 import { format } from "date-fns";
 import { Plus, Factory } from "lucide-react";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function MillingPage() {
+  return (
+    <ProtectedRoute>
+      <MillingContent />
+    </ProtectedRoute>
+  );
+}
+
+function MillingContent() {
   const [milling, setMilling] = useState<Milling[]>([]);
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);

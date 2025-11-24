@@ -30,8 +30,17 @@ import {
 import { getHarvests, createHarvest, type Harvest } from "@/lib/api";
 import { Plus, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
+import ProtectedRoute from "@/components/ProtectedRoute";
 
 export default function HarvestPage() {
+  return (
+    <ProtectedRoute>
+      <HarvestContent />
+    </ProtectedRoute>
+  );
+}
+
+function HarvestContent() {
   const [harvests, setHarvests] = useState<Harvest[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);

@@ -15,8 +15,17 @@ import { Label } from '@/components/ui/label';
 import { getAvailableStorage, getMilling, getHarvests, type Storage, type Milling, type Harvest } from '@/lib/api';
 import { format } from 'date-fns';
 import { Package, TrendingUp, AlertCircle } from 'lucide-react';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function StoragePage() {
+  return (
+    <ProtectedRoute>
+      <StorageContent />
+    </ProtectedRoute>
+  );
+}
+
+function StorageContent() {
   const [storage, setStorage] = useState<Storage[]>([]);
   const [milling, setMilling] = useState<Milling[]>([]);
   const [harvests, setHarvests] = useState<Harvest[]>([]);

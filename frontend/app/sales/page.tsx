@@ -24,8 +24,17 @@ import {
 import { getSales, getAvailableStorage, createSale, updatePaymentStatus, getMilling, getHarvests, type Sale, type Storage, type Milling, type Harvest } from '@/lib/api';
 import { format } from 'date-fns';
 import { DollarSign, Plus, ShoppingCart, AlertCircle } from 'lucide-react';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function SalesPage() {
+  return (
+    <ProtectedRoute>
+      <SalesContent />
+    </ProtectedRoute>
+  );
+}
+
+function SalesContent() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [storage, setStorage] = useState<Storage[]>([]);
   const [milling, setMilling] = useState<Milling[]>([]);

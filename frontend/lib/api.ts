@@ -9,6 +9,67 @@ const api = axios.create({
   },
 });
 
+// Request interceptor to add auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor to handle 401 errors and token refresh
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+
+    // If 401 and not already retried
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        const refreshToken = localStorage.getItem('refresh_token');
+        if (refreshToken) {
+          // Attempt to refresh the token
+          const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {}, {
+            headers: {
+              Authorization: `Bearer ${refreshToken}`,
+            },
+          });
+
+          const { access_token } = response.data;
+          localStorage.setItem('access_token', access_token);
+
+          // Retry the original request with new token
+          originalRequest.headers.Authorization = `Bearer ${access_token}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        // Refresh failed, redirect to login
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+
+    // For other errors or if refresh failed, redirect to login on 401
+    if (error.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 // Types
 export interface Harvest {
   id: number;
@@ -108,6 +169,58 @@ export interface Alert {
   current_stock?: number;
 }
 
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  full_name: string;
+  role_id: number;
+  role_name: string;
+  is_active: boolean;
+  last_login: string | null;
+  created_at: string;
+}
+
+export interface Role {
+  id: number;
+  name: string;
+  description: string;
+  created_at: string;
+  permissions: Permission[];
+}
+
+export interface Permission {
+  id: number;
+  resource: string;
+  action: string;
+  description: string;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  message: string;
+  access_token: string;
+  refresh_token: string;
+  user: User;
+}
+
+export interface RegisterRequest {
+  username: string;
+  email: string;
+  password: string;
+  full_name: string;
+  role_id: number;
+}
+
+export interface RegisterResponse {
+  message: string;
+  user: User;
+}
+
 // Harvest API
 export const getHarvests = () => api.get<Harvest[]>('/harvests');
 export const getHarvest = (id: number) => api.get<Harvest>(`/harvests/${id}`);
@@ -144,5 +257,12 @@ export const downloadExcelReport = (type: string = 'summary') => {
 export const downloadPdfReport = (type: string = 'summary') => {
   return `${API_BASE_URL}/reports/pdf?type=${type}`;
 };
+
+// Authentication API
+export const login = (data: LoginRequest) => api.post<LoginResponse>('/auth/login', data);
+export const register = (data: RegisterRequest) => api.post<RegisterResponse>('/auth/register', data);
+export const logout = () => api.post('/auth/logout');
+export const refreshToken = () => api.post<{ access_token: string }>('/auth/refresh');
+export const getCurrentUser = () => api.get<User>('/auth/me');
 
 export default api;

@@ -4,8 +4,17 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { getAllAlerts, type Alert } from '@/lib/api';
 import { AlertCircle, AlertTriangle, Info, Bell } from 'lucide-react';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function AlertsPage() {
+  return (
+    <ProtectedRoute>
+      <AlertsContent />
+    </ProtectedRoute>
+  );
+}
+
+function AlertsContent() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
 

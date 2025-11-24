@@ -6,8 +6,17 @@ import { Button } from '@/components/ui/button';
 import { getDashboardSummary, getProfitTrends, downloadExcelReport, downloadPdfReport, type DashboardSummary, type ProfitTrend } from '@/lib/api';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { TrendingUp, Package, DollarSign, AlertCircle, Download, FileSpreadsheet } from 'lucide-react';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function Dashboard() {
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
+  );
+}
+
+function DashboardContent() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [profitTrends, setProfitTrends] = useState<ProfitTrend[]>([]);
   const [loading, setLoading] = useState(true);
