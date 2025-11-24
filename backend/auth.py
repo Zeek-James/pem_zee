@@ -3,10 +3,10 @@ Authentication and Authorization middleware
 """
 
 from functools import wraps
-from flask import jsonify
+from flask import jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
-from sqlalchemy.orm import sessionmaker
-from models import User, Permission
+from sqlalchemy.orm import sessionmaker, joinedload
+from models import User, Role, Permission, AuditLog
 import config
 from sqlalchemy import create_engine
 
@@ -17,10 +17,19 @@ Session = sessionmaker(bind=engine)
 
 def get_current_user():
     """Get current authenticated user from JWT token"""
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())  # Convert string to int
     session = Session()
     try:
-        user = session.query(User).get(user_id)
+        # Eagerly load role and permissions to avoid detached instance errors
+        user = session.query(User).options(
+            joinedload(User.role).joinedload(Role.permissions)
+        ).filter(User.id == user_id).first()
+
+        if user:
+            # Force load of relationships before session closes
+            _ = user.role.name
+            _ = user.role.permissions
+
         return user
     finally:
         session.close()
@@ -124,3 +133,69 @@ def require_role(*allowed_roles):
             return fn(*args, **kwargs)
         return wrapper
     return decorator
+
+
+# ============= AUDIT LOGGING =============
+
+def log_audit(session, user_id, entity_type, entity_id, action, old_values=None, new_values=None):
+    """
+    Create an audit log entry
+
+    Args:
+        session: SQLAlchemy session
+        user_id: ID of user performing the action
+        entity_type: Type of entity (harvest, milling, storage, sale)
+        entity_id: ID of the entity
+        action: Action performed (create, update, delete)
+        old_values: Dictionary of old values (for update/delete)
+        new_values: Dictionary of new values (for create/update)
+    """
+    try:
+        # Get IP address and user agent from request
+        ip_address = request.remote_addr if request else None
+        user_agent = request.headers.get('User-Agent') if request else None
+
+        audit_log = AuditLog(
+            user_id=user_id,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action=action,
+            old_values=old_values,
+            new_values=new_values,
+            ip_address=ip_address,
+            user_agent=user_agent
+        )
+
+        session.add(audit_log)
+        # Note: Don't commit here - let the calling function handle commits
+
+    except Exception as e:
+        # Log error but don't fail the main operation
+        print(f"Error creating audit log: {e}")
+
+
+def get_entity_values(entity, exclude_fields=None):
+    """
+    Extract entity values as dictionary for audit logging
+
+    Args:
+        entity: SQLAlchemy model instance
+        exclude_fields: List of fields to exclude from audit log
+
+    Returns:
+        Dictionary of entity values
+    """
+    if exclude_fields is None:
+        exclude_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+
+    values = {}
+    for column in entity.__table__.columns:
+        if column.name not in exclude_fields:
+            value = getattr(entity, column.name)
+            # Convert date/datetime to string for JSON serialization
+            if hasattr(value, 'isoformat'):
+                values[column.name] = value.isoformat()
+            else:
+                values[column.name] = value
+
+    return values
